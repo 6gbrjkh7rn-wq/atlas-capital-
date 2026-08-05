@@ -52,6 +52,14 @@ export function formatAssetDate(value: string | null) {
   }).format(date);
 }
 
+export function getAssetTotalValue(asset: Asset) {
+  return toNumber(asset.quantity) * toNumber(asset.current_price);
+}
+
+export function getAssetGainLoss(asset: Asset) {
+  return toNumber(asset.quantity) * (toNumber(asset.current_price) - toNumber(asset.average_price));
+}
+
 export async function getAssets(): Promise<Asset[]> {
   const { data, error } = await supabase
     .from("assets")

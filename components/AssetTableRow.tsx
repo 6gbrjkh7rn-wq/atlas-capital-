@@ -7,13 +7,20 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import {
   formatCurrency,
   formatQuantity,
-  toNumber,
+  getAssetGainLoss,
+  getAssetTotalValue,
   type Asset,
 } from "@/lib/assets";
 
 export function AssetTableRow({ asset }: { asset: Asset }) {
   const router = useRouter();
-  const totalValue = toNumber(asset.quantity) * toNumber(asset.current_price);
+  const totalValue = getAssetTotalValue(asset);
+  const gainLoss = getAssetGainLoss(asset);
+  const gainLossClassName = gainLoss > 0
+    ? "text-emerald-700 dark:text-emerald-400"
+    : gainLoss < 0
+      ? "text-rose-700 dark:text-rose-400"
+      : "text-neutral-900 dark:text-white";
 
   function openAsset() {
     router.push(`/assets/${asset.id}`);
@@ -46,6 +53,9 @@ export function AssetTableRow({ asset }: { asset: Asset }) {
       </TableCell>
       <TableCell className="text-right font-medium tabular-nums text-neutral-900 dark:text-white">
         {formatCurrency(totalValue, asset.currency)}
+      </TableCell>
+      <TableCell className={`text-right font-medium tabular-nums ${gainLossClassName}`}>
+        {formatCurrency(gainLoss, asset.currency)}
       </TableCell>
       <TableCell className="text-right">
         <AssetActions asset={asset} />

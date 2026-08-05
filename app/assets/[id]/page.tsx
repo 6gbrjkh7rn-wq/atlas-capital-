@@ -6,6 +6,8 @@ import {
   formatAssetDate,
   formatCurrency,
   formatQuantity,
+  getAssetGainLoss,
+  getAssetTotalValue,
   getAsset,
   toNumber,
 } from "@/lib/assets";
@@ -58,11 +60,10 @@ export default async function AssetDetailsPage({
     );
   }
 
-  const quantity = toNumber(asset.quantity);
   const averagePrice = toNumber(asset.average_price);
   const currentPrice = toNumber(asset.current_price);
-  const totalValue = quantity * currentPrice;
-  const gainLoss = quantity * (currentPrice - averagePrice);
+  const totalValue = getAssetTotalValue(asset);
+  const gainLoss = getAssetGainLoss(asset);
   const gainLossPercent = averagePrice === 0 ? 0 : ((currentPrice - averagePrice) / averagePrice) * 100;
   const gainLossClassName = gainLoss > 0
     ? "text-emerald-700 dark:text-emerald-400"
