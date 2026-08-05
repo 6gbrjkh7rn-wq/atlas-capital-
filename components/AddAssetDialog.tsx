@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import type { Asset } from "@/lib/assets";
 import { supabase } from "@/lib/supabase";
 
 const assetTypes = [
@@ -36,15 +37,36 @@ const initialAssetForm = {
 
 type AssetForm = typeof initialAssetForm;
 
+type AddAssetDialogProps = {
+  asset?: Asset;
+};
+
 const fieldClassName =
   "mt-1.5 h-10 w-full rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-900 outline-none transition-colors placeholder:text-neutral-400 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200 dark:border-white/10 dark:bg-white/[0.04] dark:text-white dark:focus:border-white/30 dark:focus:ring-white/10";
 
-export function AddAssetDialog() {
+function getAssetForm(asset?: Asset): AssetForm {
+  if (!asset) {
+    return initialAssetForm;
+  }
+
+  return {
+    name: asset.name,
+    ticker: asset.ticker ?? "",
+    assetType: asset.asset_type,
+    quantity: String(asset.quantity ?? 0),
+    averagePrice: String(asset.average_price ?? 0),
+    currentPrice: String(asset.current_price ?? 0),
+    currency: asset.currency ?? "EUR",
+  };
+}
+
+export function AddAssetDialog({ asset }: AddAssetDialogProps) {
+  const isEditing = Boolean(asset);
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState<AssetForm>(initialAssetForm);
+  const [form, setForm] = useState<AssetForm>(() => getAssetForm(asset));
 
   function updateForm(field: keyof AssetForm, value: string) {
     setForm((currentForm) => ({ ...currentForm, [field]: value }));
@@ -55,7 +77,7 @@ export function AddAssetDialog() {
     setError(null);
     setIsSubmitting(true);
 
-    const { error: insertError } = await supabase.from("assets").insert({
+    const assetData = {
       name: form.name.trim(),
       ticker: form.ticker.trim() || null,
       asset_type: form.assetType,
@@ -63,36 +85,59 @@ export function AddAssetDialog() {
       average_price: Number(form.averagePrice),
       current_price: Number(form.currentPrice),
       currency: form.currency.trim().toUpperCase(),
-    });
+    };
+
+    const { error: saveError } = asset
+      ? await supabase.from("assets").update(assetData).eq("id", asset.id)
+      : await supabase.from("assets").insert(assetData);
 
     setIsSubmitting(false);
 
-    if (insertError) {
-      setError(insertError.message);
+    if (saveError) {
+      setError(saveError.message);
       return;
     }
 
-    setForm(initialAssetForm);
+    setForm(getAssetForm(asset));
     setOpen(false);
     router.refresh();
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) {
+          setError(null);
+          setForm(getAssetForm(asset));
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-10 items-center gap-2 rounded-lg bg-neutral-900 px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200 dark:focus-visible:ring-white dark:focus-visible:ring-offset-[#111214]"
+          className={
+            isEditing
+              ? "inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
+              : "inline-flex h-10 items-center gap-2 rounded-lg bg-neutral-900 px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200 dark:focus-visible:ring-white dark:focus-visible:ring-offset-[#111214]"
+          }
         >
-          <Plus className="size-4" aria-hidden="true" />
-          Add Asset
+          {isEditing ? (
+            <Pencil className="size-3.5" aria-hidden="true" />
+          ) : (
+            <Plus className="size-4" aria-hidden="true" />
+          )}
+          {isEditing ? "Edit Asset" : "Add Asset"}
         </button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Asset</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit Asset" : "Add Asset"}</DialogTitle>
           <DialogDescription>
-            Add a holding to your portfolio.
+            {isEditing
+              ? "Update this holding in your portfolio."
+              : "Add a holding to your portfolio."}
           </DialogDescription>
         </DialogHeader>
         <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
@@ -204,7 +249,13 @@ export function AddAssetDialog() {
               disabled={isSubmitting}
               className="h-10 rounded-lg bg-neutral-900 px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
             >
-              {isSubmitting ? "Adding..." : "Add Asset"}
+              {isSubmitting
+                ? isEditing
+                  ? "Saving..."
+                  : "Adding..."
+                : isEditing
+                  ? "Save Changes"
+                  : "Add Asset"}
             </button>
           </div>
         </form>
